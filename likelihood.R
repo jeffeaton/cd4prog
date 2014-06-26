@@ -73,9 +73,12 @@ ll.survdat <- function(pi0, lambda, mu, survdat){
 }
 
 ll <- function(theta, cd4dat, survdat=NULL){
-  pi0 <- c(1-sum(theta[1:(NS-1)]), theta[1:(NS-1)])
+  pi0 <- c(1-sum(theta[1:(NS-1)]), theta[1:(NS-1)])  
   lambda <- exp(theta[(NS-1) + 1:(NS-1)])
   mu <- exp(theta[2*(NS-1) + 1:NS])
+
+  if(any(pi0 <= 0) || any(pi0 > 1))
+    return(-Inf)
 
   ll.cd4 <- ll.cd4dat(pi0, lambda, mu, cd4dat)
 
