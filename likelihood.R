@@ -1,12 +1,40 @@
 library(expm)
 
-NS <- 4 # number of stages
+## NS <- 4 # number of stages
 
 transmat <- function(lambda, mu){
   Lam <- -diag(c(lambda, 0)+mu)
   diag(Lam[,-1]) <- lambda
   return(Lam)
 }
+
+
+## CDF for convoluation of exponential distribution with unequal rates
+pexpsum <- Vectorize(function(x, rates){
+  if(!length(rates))
+    return(1)
+  return(1-sum(sapply(seq_along(rates), function(i) prod(rates[-i])/prod(rates[-i] - rates[i])*exp(-x*rates[i]))))
+  }, "x")
+
+## calculates expm(t*Lam), but appears slower than expm(t*Lam)
+progmat <- function(t, lambda, mu){
+
+  NS <- length(mu)
+  rate <- c(lambda, 0) + mu
+  psurv <- c(lambda, 0)/rate
+
+  pmat <- matrix(0, NS, NS)
+
+  for(i in 1:NS)
+    for(j in i:NS){
+      ii <- (i-1)+seq_len(j-i+1)
+      iip <- (i-1)+seq_len(j-i)
+      pmat[i,j] <- (pexpsum(t, rate[iip]) - pexpsum(t, rate[ii]))*prod(psurv[iip])
+    }
+
+  return(pmat)
+}
+      
 
 ## probability for an individual only with observed survival information
 ll.surv.ind <- function(t, d, pi0, lambda, mu, Lam = NULL){
@@ -18,6 +46,8 @@ ll.surv.ind <- function(t, d, pi0, lambda, mu, Lam = NULL){
     Lam <- transmat(lambda, mu)
 
   pi.t <- pi0 %*% expm(t*Lam) # probability in stage s at time t;; !! THIS IS SLOW
+  ## pi.t <- expAtv(t(Lam), pi0, t)$eAtv # probability in stage s at time t;; appears slower for NS = 4
+
   if(d)
     return(log(sum(pi.t * mu)))
   else
